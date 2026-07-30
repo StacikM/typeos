@@ -1,0 +1,47 @@
+body {
+    background-color: black;
+    color: white;
+    font-family: "Ubuntu Mono", "Menlo", "Consolas", monospace;
+}
+
+p {
+    margin: 0;
+    white-space: pre-wrap;
+}
+
+.cursor {
+    display: inline-block;
+    width: 0.45em;
+    height: 1.05em;
+    background: currentColor;
+    vertical-align: text-bottom;
+    animation: blink 1s steps(1) infinite;
+}
+
+@keyframes blink {
+    50% { opacity: 0; }
+}
+
+#editor {
+    position: fixed;
+    inset: 0;
+    background: black;
+    color: white;
+    display: flex;
+    flex-direction: column;
+}
+
+#editor .bar {
+    background: white;
+    color: black;
+    padding: 2px 8px;
+}
+
+#editor pre {
+    flex: 1;
+    margin: 0;
+    padding: 8px;
+    font-family: inherit;
+    white-space: pre-wrap;
+    overflow-y: auto;
+}

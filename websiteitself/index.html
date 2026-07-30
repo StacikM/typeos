@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TypeOS</title>
+  </head>
+  <body>
+    <div id="terminal"></div>
+    <div id="powerbtn" style="display: flex; justify-content: center; align-items: center; height: 100vh;">
+      <img style="cursor: crosshair;" width="100" height="100" src="/src/images/powerbtn.png" alt="Power Button" id="actualpowerbtn">
+      <br>
+      <p>Press To Power On</p>
+    </div>
+    <p id="input"></p>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
