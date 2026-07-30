@@ -1,12 +1,14 @@
 import { downloadFile, isMobile, pickFile, youtubeUrlToEmbed } from "./helpers";
 import { changeDir, deleteFile, dirExists, dumpFs, getCwd, listFiles, loadFs, makeDir, readFile, removeDir, resolvePath, writeFile } from "./kernel/filesystem";
 import { addUser, canWrite, getUser, getUsers, runAsRoot, switchUser } from "./kernel/users";
-import { expandEnv, listEnv, setEnv, unsetEnv } from "./kernel/env";
+import { expandEnv, getEnv, listEnv, setEnv, unsetEnv } from "./kernel/env";
 import restart from "./kernel/power/restart";
 import shutdown from "./kernel/power/shutdown";
 import { openNano } from "./nano";
 import { changeColor, clearTerminal, getHistory, printf } from "./terminal";
 import panic from "./kernel/panic";
+import { attach, detach, isAttached, isAvailable } from "./pchelper";
+import { runJsFile } from "./runjs";
 
 const manPages : Record<string, string> = {
     help: "help — list every command in one line",
@@ -26,7 +28,7 @@ const manPages : Record<string, string> = {
     mv: "mv <from> <to> — move or rename a file",
     rm: "rm [-rf] <path> — delete a file, or a directory with -r. deleting / needs --no-preserve-root",
     nano: "nano <path> — text editor. arrows/home/end move, ctrl+x saves & exits, esc exits without saving",
-    sh: "sh <path> — run a script: one command per line, # starts a comment",
+    sh: "sh <path> — run a script: one command per line, # comments, VAR=value sets a var, if <expr>/else/end and while <expr>/end for control flow (expr: exists <path>, a == b, a != b, !expr). unrecognized bare commands are looked up in $PATH; use ./name or a full path to run a script directly regardless of PATH. .js files run as real javascript instead (api: print, readFile, writeFile, deleteFile, listFiles, whoami, env, sleep)",
     import: "import <path> — upload a real file from your computer into the filesystem (max 1 MB)",
     export: "export <path> — download a file to your computer. export NAME=value sets an env variable",
     env: "env — list all environment variables",
@@ -46,6 +48,9 @@ const manPages : Record<string, string> = {
     reboot: "reboot — restart TypeOS (root only)",
     shutdown: "shutdown — power off (root only)",
     debug: "debug - debug cmds that the devs of TypeOS use to speed up development or test features",
+    github: "github - open github repo in new tab",
+    attachToHelper: "attachToHelper <key> — attach this session to a running TypeOS PC helper, syncing your filesystem with your real PC",
+    detachHelper: "detachHelper — detach from the PC helper, stopping the sync",
 }
 
 function needWrite(path : string) {
@@ -54,14 +59,111 @@ function needWrite(path : string) {
     return false
 }
 
-export async function runScript(script : string) {
-    for (const line of script.split("\n")) {
-        const trimmed = line.trim()
-        if (trimmed == "" || trimmed.startsWith("#")) { continue }
-        const parts = trimmed.split(/\s+/)
-        const cmd = parts.shift() ?? ""
-        await interpretCmd(cmd, parts)
+function matchBlock(lines : string[], start : number) {
+    let depth = 0
+    let elseIdx : number | null = null
+    for (let i = start + 1; i < lines.length; i++) {
+        const word = lines[i].split(/\s+/)[0]
+        if (word == "if" || word == "while") {
+            depth++
+        } else if (word == "end") {
+            if (depth == 0) { return { elseIdx, endIdx: i } }
+            depth--
+        } else if (word == "else" && depth == 0) {
+            elseIdx = i
+        }
     }
+    throw new Error("sh: missing end for '" + lines[start] + "'")
+}
+
+function evalExpr(exprRaw : string) {
+    let expr = expandEnv(exprRaw.trim())
+    let negate = false
+    if (expr.startsWith("!")) {
+        negate = true
+        expr = expr.slice(1).trim()
+    }
+
+    let result : boolean
+    const existsMatch = expr.match(/^exists\s+(.+)$/)
+    if (existsMatch) {
+        result = readFile(existsMatch[1]) != null || dirExists(existsMatch[1])
+    } else if (expr.includes("==")) {
+        const [a, b] = expr.split("==").map(s => s.trim())
+        result = a == b
+    } else if (expr.includes("!=")) {
+        const [a, b] = expr.split("!=").map(s => s.trim())
+        result = a != b
+    } else {
+        result = expr != "" && expr != "0" && expr != "false"
+    }
+    return negate ? !result : result
+}
+
+const STEP_LIMIT = 5000
+let stepGuard = 0
+
+function tick() {
+    if (++stepGuard > STEP_LIMIT) {
+        throw new Error("sh: too many steps, aborting (possible infinite loop)")
+    }
+}
+
+async function execLines(lines : string[], start : number, end : number) {
+    let i = start
+    while (i < end) {
+        tick()
+
+        const line = lines[i]
+        const parts = line.split(/\s+/)
+        const word = parts[0]
+
+        if (word == "if") {
+            const { elseIdx, endIdx } = matchBlock(lines, i)
+            if (evalExpr(parts.slice(1).join(" "))) {
+                await execLines(lines, i + 1, elseIdx ?? endIdx)
+            } else if (elseIdx != null) {
+                await execLines(lines, elseIdx + 1, endIdx)
+            }
+            i = endIdx + 1
+        } else if (word == "while") {
+            const { endIdx } = matchBlock(lines, i)
+            while (evalExpr(parts.slice(1).join(" "))) {
+                tick()
+                await execLines(lines, i + 1, endIdx)
+            }
+            i = endIdx + 1
+        } else if (word == "else" || word == "end") {
+            i++
+        } else if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(line)) {
+            const eq = line.indexOf("=")
+            setEnv(line.slice(0, eq), expandEnv(line.slice(eq + 1)))
+            i++
+        } else {
+            const cmd = parts[0]
+            const args = parts.slice(1)
+            await interpretCmd(cmd, args)
+            i++
+        }
+    }
+}
+
+export async function runScript(script : string) {
+    const lines = script.split("\n").map(l => l.trim()).filter(l => l != "" && !l.startsWith("#"))
+    stepGuard = 0
+    try {
+        await execLines(lines, 0, lines.length)
+    } catch (e) {
+        printf(e instanceof Error ? e.message : String(e), "red")
+    }
+}
+
+function findInPath(name : string) {
+    for (const dir of (getEnv("PATH") ?? "/bin").split(":")) {
+        const candidate = (dir.endsWith("/") ? dir : dir + "/") + name
+        if (readFile(candidate) != null) { return candidate }
+    }
+    return null
 }
 
 export async function interpretCmd(cmd : string, args: Array<string>) {
@@ -346,7 +448,26 @@ export async function interpretCmd(cmd : string, args: Array<string>) {
     } else if (cmd == "debug") {
         if (!args[0]) { printf("usage: debug <dbg: panic>"); return; }
         if (args[0] == "panic") { panic("triggered using debug"); }
+    } else if (cmd =="github") {
+        window.open("https://github.com/StacikM/typeos", "_blank")
+    } else if (cmd == "attachToHelper") {
+        if (args.length == 0) { printf("usage: attachToHelper <key>"); return }
+        if (!(await isAvailable())) { printf("attachToHelper: pc helper is not running"); return }
+        const ok = await attach(args[0])
+        printf(ok ? "attached to pc helper, syncing filesystem" : "attachToHelper: invalid key")
+    } else if (cmd == "detachHelper") {
+        if (!isAttached()) { printf("detachHelper: not attached"); return }
+        await detach()
+        printf("detached from pc helper")
     } else {
-        printf(cmd + ": command not found")
+        const path = cmd.includes("/") ? cmd : findInPath(cmd)
+        const content = path == null ? null : readFile(path)
+        if (content == null || path == null) {
+            printf(cmd + ": command not found")
+        } else if (path.endsWith(".js")) {
+            await runJsFile(content)
+        } else {
+            await runScript(content)
+        }
     }
 }

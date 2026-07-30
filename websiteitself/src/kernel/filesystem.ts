@@ -1,5 +1,16 @@
 let cwd = "/"
 
+type ChangeListener = (path : string, data : string | null) => void
+const listeners : ChangeListener[] = []
+
+export function onFsChange(cb : ChangeListener) {
+    listeners.push(cb)
+}
+
+function notify(path : string, data : string | null) {
+    for (const cb of listeners) { cb(path, data) }
+}
+
 export function getCwd() {
     return cwd
 }
@@ -76,7 +87,9 @@ function normalize(path : string) {
 }
 
 export function writeFile(path : string, data : string) {
-    localStorage.setItem(normalize(path), data)
+    const p = normalize(path)
+    localStorage.setItem(p, data)
+    notify(p, data)
 }
 
 export function readFile(path : string) {
@@ -84,7 +97,9 @@ export function readFile(path : string) {
 }
 
 export function deleteFile(path : string) {
-    localStorage.removeItem(normalize(path))
+    const p = normalize(path)
+    localStorage.removeItem(p)
+    notify(p, null)
 }
 
 export function listFiles(path : string) {

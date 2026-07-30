@@ -1,7 +1,7 @@
 import { readFile } from "./filesystem";
 import { getUser } from "./users";
 
-const vars : Record<string, string> = {}
+const vars : Record<string, string> = { PATH: "/bin" }
 
 export function getEnv(name : string) : string | null {
     if (name in vars) { return vars[name] }

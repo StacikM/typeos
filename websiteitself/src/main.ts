@@ -3,6 +3,7 @@ import { readFile, writeFile } from "./kernel/filesystem";
 import { input, printf, registerInput, registerPaste } from "./terminal";
 import restart from "./kernel/power/restart";
 import { randomString } from "./helpers";
+import { isAvailable } from "./pchelper";
 
 const banner = [
   " _____ __   __ ____   _____   ___   ____  ",
@@ -14,7 +15,7 @@ const banner = [
 
 const powerbtn = document.getElementById("powerbtn")
 
-function start() {
+async function start() {
   if (powerbtn) { powerbtn.style.display = "none"}
   navigator.storage?.persist?.()
   printf(banner)
@@ -26,6 +27,13 @@ function start() {
   }
   if (readFile("/etc/setupDone") == null) {
     setup()
+  }
+  if (readFile("/etc/setupDone")) {
+    printf("TypeOS is open source, and has a PC helper so your filesystem exists on your actual PC! use \"downloadPC\" to download PC helper.")
+    printf("For github, use \"github\". Thanks!")
+    if (await isAvailable()) {
+      printf("It seems like you are running TypeOS PC helper, to attach, follow the instructions that the program gave you")
+    }
   }
 }
 
