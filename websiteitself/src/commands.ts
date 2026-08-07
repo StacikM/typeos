@@ -49,6 +49,7 @@ const manPages : Record<string, string> = {
     shutdown: "shutdown — power off (root only)",
     debug: "debug - debug cmds that the devs of TypeOS use to speed up development or test features",
     github: "github - open github repo in new tab",
+    downloadPC: "downloadPC - open the latest PC helper release download page in a new tab",
     attachToHelper: "attachToHelper <key> — attach this session to a running TypeOS PC helper, syncing your filesystem with your real PC",
     detachHelper: "detachHelper — detach from the PC helper, stopping the sync",
 }
@@ -450,6 +451,8 @@ export async function interpretCmd(cmd : string, args: Array<string>) {
         if (args[0] == "panic") { panic("triggered using debug"); }
     } else if (cmd =="github") {
         window.open("https://github.com/StacikM/typeos", "_blank")
+    } else if (cmd == "downloadPC") {
+        window.open("https://github.com/StacikM/typeos/releases/latest", "_blank")
     } else if (cmd == "attachToHelper") {
         if (args.length == 0) { printf("usage: attachToHelper <key>"); return }
         if (!(await isAvailable())) { printf("attachToHelper: pc helper is not running"); return }

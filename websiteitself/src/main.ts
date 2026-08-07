@@ -29,6 +29,7 @@ async function start() {
     setup()
   }
   if (readFile("/etc/setupDone")) {
+    printf(" ") // acts as a <br> lol
     printf("TypeOS is open source, and has a PC helper so your filesystem exists on your actual PC! use \"downloadPC\" to download PC helper.")
     printf("For github, use \"github\". Thanks!")
     if (await isAvailable()) {
