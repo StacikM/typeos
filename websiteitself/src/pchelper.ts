@@ -1,6 +1,6 @@
 import { dumpFs, onFsChange, writeFile } from "./kernel/filesystem";
 
-const HELPER_URL = "http://localhost:8973";
+export const HELPER_URL = "http://localhost:8973";
 
 let key : string | null = null;
 let attached = false;
@@ -20,6 +20,10 @@ export async function isAvailable() {
 
 export function isAttached() {
     return attached;
+}
+
+export function getKey() {
+    return key;
 }
 
 export async function attach(newKey : string) {

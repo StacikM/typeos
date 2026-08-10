@@ -2,6 +2,7 @@ import { deleteFile, listFiles, readFile, writeFile } from "./kernel/filesystem"
 import { getEnv } from "./kernel/env";
 import { getUser } from "./kernel/users";
 import { printf } from "./terminal";
+import { openScreen } from "./screen";
 
 export async function runJsFile(code : string) {
     const api = {
@@ -14,6 +15,7 @@ export async function runJsFile(code : string) {
         whoami: getUser,
         env: getEnv,
         sleep: (ms : number) => new Promise(r => setTimeout(r, ms)),
+        screen: openScreen,
     }
 
     try {

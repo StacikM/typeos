@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Renci.SshNet;
 
 var configDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TypeOS");
 Directory.CreateDirectory(configDir);
@@ -30,6 +31,9 @@ Console.Write($"TypeOS helper has started. You may now attach your session by pu
 
 var attached = false;
 
+SshClient? ssh = null;
+var sshCwd = "";
+
 string? ResolvePath(string relPath)
 {
     var full = Path.GetFullPath(Path.Combine(workspaceDir, relPath));
@@ -37,6 +41,8 @@ string? ResolvePath(string relPath)
 }
 
 bool Authorized(HttpRequest req) => req.Headers["X-Key"].ToString() == key;
+
+string ShellQuote(string s) => "'" + s.Replace("'", "'\\''") + "'";
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
@@ -105,6 +111,78 @@ app.MapDelete("/files", (HttpRequest req, string path) =>
     return Results.Ok();
 });
 
+app.MapPost("/ssh/connect", (HttpRequest req, SshConnect body) =>
+{
+    if (!Authorized(req) || !attached) return Results.Unauthorized();
+    try
+    {
+        ssh?.Disconnect();
+        ssh?.Dispose();
+
+        var passwordAuth = new PasswordAuthenticationMethod(body.User, body.Password);
+        var keyboardAuth = new KeyboardInteractiveAuthenticationMethod(body.User);
+        keyboardAuth.AuthenticationPrompt += (_, e) =>
+        {
+            foreach (var prompt in e.Prompts) { prompt.Response = body.Password; }
+        };
+        var info = new Renci.SshNet.ConnectionInfo(body.Host, body.Port <= 0 ? 22 : body.Port, body.User, passwordAuth, keyboardAuth)
+        {
+            Timeout = TimeSpan.FromSeconds(30)
+        };
+
+        ssh = new SshClient(info);
+        ssh.Connect();
+        sshCwd = "";
+        return Results.Ok("connected");
+    }
+    catch (Exception e)
+    {
+        ssh?.Dispose();
+        ssh = null;
+        return Results.BadRequest(e.Message);
+    }
+});
+
+app.MapPost("/ssh/run", (HttpRequest req, SshRun body) =>
+{
+    if (!Authorized(req) || !attached) return Results.Unauthorized();
+    if (ssh == null || !ssh.IsConnected) return Results.BadRequest("not connected");
+
+    var marker = "__TYPEOS_SSH_PWD__";
+    var cd = sshCwd == "" ? "" : $"cd {ShellQuote(sshCwd)} 2>/dev/null; ";
+    var command = ssh.CreateCommand($"{cd}{body.Command}; printf {ShellQuote(marker)}; pwd");
+    command.CommandTimeout = TimeSpan.FromSeconds(30);
+
+    try
+    {
+        var result = command.Execute();
+        var output = result;
+        var idx = result.LastIndexOf(marker, StringComparison.Ordinal);
+        if (idx >= 0)
+        {
+            output = result.Substring(0, idx);
+            var pwd = result.Substring(idx + marker.Length).Trim();
+            if (pwd != "") { sshCwd = pwd; }
+        }
+        return Results.Json(new { output, error = command.Error, cwd = sshCwd });
+    }
+    catch (Exception e)
+    {
+        return Results.Json(new { output = "", error = e.Message, cwd = sshCwd });
+    }
+});
+
+app.MapPost("/ssh/disconnect", (HttpRequest req) =>
+{
+    if (!Authorized(req)) return Results.Unauthorized();
+    ssh?.Disconnect();
+    ssh?.Dispose();
+    ssh = null;
+    return Results.Ok("disconnected");
+});
+
 app.Run();
 
 record FileWrite(string Path, string Content);
+record SshConnect(string Host, int Port, string User, string Password);
+record SshRun(string Command);

@@ -2,6 +2,7 @@ import { interpretCmd } from "./commands";
 import { getCwd, readFile } from "./kernel/filesystem";
 import { getUser } from "./kernel/users";
 import { isNanoOpen, nanoInput, nanoPaste } from "./nano";
+import { feedKey, feedPaste, isScreenOpen } from "./screen";
 
 const terminalDiv = document.getElementById("terminal")
 const everythingInTerminal: number[] = []
@@ -14,6 +15,7 @@ export let canType = true
 
 let pendingInput : ((line : string) => void) | null = null
 let inputPrompt = ""
+let maskInput = false
 
 const history : string[] = []
 let histIndex = 0
@@ -22,10 +24,11 @@ export function getHistory() {
     return history
 }
 
-export function input(promptText : string) : Promise<string> {
+export function input(promptText : string, mask : boolean = false) : Promise<string> {
     return new Promise((resolve) => {
         pendingInput = resolve
         inputPrompt = promptText
+        maskInput = mask
         text = ""
         updateTxt()
     })
@@ -70,6 +73,10 @@ export function registerInput(input : string, ctrl : boolean = false) {
         nanoInput(input, ctrl)
         return
     }
+    if (isScreenOpen()) {
+        feedKey(input, ctrl)
+        return
+    }
     if (canType == false) { return }
     if (input.length != 1) {
         if (input == "Backspace") {
@@ -80,10 +87,11 @@ export function registerInput(input : string, ctrl : boolean = false) {
             text = ""
 
             if (pendingInput) {
-                printf(inputPrompt + line)
+                printf(inputPrompt + (maskInput ? "*".repeat(line.length) : line))
                 const resolve = pendingInput
                 pendingInput = null
                 inputPrompt = ""
+                maskInput = false
                 resolve(line)
                 updateTxt()
                 return
@@ -124,6 +132,10 @@ export function registerPaste(pasted : string) {
         nanoPaste(pasted)
         return
     }
+    if (isScreenOpen()) {
+        feedPaste(pasted)
+        return
+    }
     if (canType == false) { return }
     text += pasted.replace(/\n/g, " ")
     updateTxt()
@@ -136,7 +148,8 @@ function prompt() {
 
 function updateTxt() {
     if (inputtxt) {
-        inputtxt.textContent = (pendingInput ? inputPrompt : prompt()) + text
+        const shown = maskInput ? "*".repeat(text.length) : text
+        inputtxt.textContent = (pendingInput ? inputPrompt : prompt()) + shown
         inputtxt.append(cursor)
         scrollToBottom()
     }

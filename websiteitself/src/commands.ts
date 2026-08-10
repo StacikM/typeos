@@ -5,10 +5,11 @@ import { expandEnv, getEnv, listEnv, setEnv, unsetEnv } from "./kernel/env";
 import restart from "./kernel/power/restart";
 import shutdown from "./kernel/power/shutdown";
 import { openNano } from "./nano";
-import { changeColor, clearTerminal, getHistory, printf } from "./terminal";
+import { changeColor, clearTerminal, disableType, enableType, getHistory, input, printf } from "./terminal";
 import panic from "./kernel/panic";
 import { attach, detach, isAttached, isAvailable } from "./pchelper";
 import { runJsFile } from "./runjs";
+import { isSshConnected, sshConnect, sshDisconnect, sshLabel, sshRun } from "./ssh";
 
 const manPages : Record<string, string> = {
     help: "help — list every command in one line",
@@ -52,6 +53,7 @@ const manPages : Record<string, string> = {
     downloadPC: "downloadPC - open the latest PC helper release download page in a new tab",
     attachToHelper: "attachToHelper <key> — attach this session to a running TypeOS PC helper, syncing your filesystem with your real PC",
     detachHelper: "detachHelper — detach from the PC helper, stopping the sync",
+    ssh: "ssh <user@host> [-p port] — connect to a real ssh server through the PC helper (attach first). runs one command at a time; type exit to disconnect. interactive programs (nano, vim, top, ...) don't work",
 }
 
 function needWrite(path : string) {
@@ -462,6 +464,41 @@ export async function interpretCmd(cmd : string, args: Array<string>) {
         if (!isAttached()) { printf("detachHelper: not attached"); return }
         await detach()
         printf("detached from pc helper")
+    } else if (cmd == "ssh") {
+        const target = args.find(a => a.includes("@"))
+        if (!target) { printf("usage: ssh <user@host> [-p port]"); return }
+        if (!(await isAvailable())) { printf("ssh: pc helper is not running. run downloadPc to get it"); return }
+        if (!isAttached()) { printf("ssh: attach to the pc helper first (attachToHelper <key>)"); return }
+
+        const [user, host] = target.split("@")
+        if (!user || !host) { printf("ssh: specify user@host"); return }
+        const pIdx = args.indexOf("-p")
+        const port = pIdx != -1 && args[pIdx + 1] ? parseInt(args[pIdx + 1]) || 22 : 22
+
+        const password = await input("password: ", true)
+        printf("connecting to " + user + "@" + host + "...")
+        disableType()
+        const err = await sshConnect(host, port, user, password)
+        enableType()
+        if (err) { printf("ssh: " + err, "red"); return }
+        printf("connected. type exit to disconnect.")
+
+        const interactive = ["nano", "vim", "vi", "emacs", "pico", "joe", "htop", "top", "less", "more", "man", "tmux", "screen", "ssh", "watch", "python", "python3", "node", "mysql", "psql", "sqlite3", "irb"]
+        while (isSshConnected()) {
+            const line = await input(sshLabel() + "$ ")
+            const trimmed = line.trim()
+            if (trimmed == "") { continue }
+            if (trimmed == "exit" || trimmed == "logout") { await sshDisconnect(); printf("disconnected"); break }
+            if (interactive.includes(trimmed.split(/\s+/)[0])) {
+                printf(trimmed.split(/\s+/)[0] + ": interactive programs don't work over TypeOS ssh :(")
+                continue
+            }
+            disableType()
+            const res = await sshRun(line)
+            enableType()
+            if (res.output) { printf(res.output.replace(/\n$/, "")) }
+            if (res.error) { printf(res.error.replace(/\n$/, ""), "red") }
+        }
     } else {
         const path = cmd.includes("/") ? cmd : findInPath(cmd)
         const content = path == null ? null : readFile(path)

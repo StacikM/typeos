@@ -71,6 +71,20 @@ export function loadFs(fs : Record<string, string>) {
     cwd = "/"
 }
 
+export function getUsedBytes() {
+    let total = 0
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key == null) { continue }
+        total += key.length + (localStorage.getItem(key)?.length ?? 0)
+    }
+    return total
+}
+
+export function getUsedMB() {
+    return getUsedBytes() / 1024 / 1024
+}
+
 function normalize(path : string) {
     if (!path.startsWith("/")) { path = cwd + "/" + path }
 

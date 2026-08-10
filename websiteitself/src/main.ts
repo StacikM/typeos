@@ -1,5 +1,5 @@
 import "./style.css";
-import { readFile, writeFile } from "./kernel/filesystem";
+import { getUsedMB, readFile, writeFile } from "./kernel/filesystem";
 import { input, printf, registerInput, registerPaste } from "./terminal";
 import restart from "./kernel/power/restart";
 import { randomString } from "./helpers";
@@ -16,11 +16,13 @@ const banner = [
 const powerbtn = document.getElementById("powerbtn")
 
 async function start() {
+  const usage = getUsedMB()
   if (powerbtn) { powerbtn.style.display = "none"}
   navigator.storage?.persist?.()
   printf(banner)
   printf("Welcome to TypeOS")
   printf("This is a crappy recreation of a linux shell in typesh- typescript.")
+  if (usage >= 4) { printf("warning: you will soon reach localstorage's file system limit. Please use PC helper", "red")}
   writeFile("/etc/boot-id", randomString())
   if (readFile("/home/root/helloworld.txt") == null) {
     writeFile("/home/root/helloworld.txt", "hello! this is an filesystem, using localstorage, crazy right?")

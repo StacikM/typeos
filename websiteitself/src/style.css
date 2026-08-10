@@ -22,7 +22,7 @@ p {
     50% { opacity: 0; }
 }
 
-#editor {
+#editor, #screen {
     position: fixed;
     inset: 0;
     background: black;
@@ -31,13 +31,13 @@ p {
     flex-direction: column;
 }
 
-#editor .bar {
+#editor .bar, #screen .bar {
     background: white;
     color: black;
     padding: 2px 8px;
 }
 
-#editor pre {
+#editor pre, #screen pre {
     flex: 1;
     margin: 0;
     padding: 8px;
