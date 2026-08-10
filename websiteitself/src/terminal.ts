@@ -49,7 +49,6 @@ export function printf(text : string, color : string = "white") {
     if (color != "white") { newp.style.color = color; }
     terminalDiv?.append(newp)
     scrollToBottom()
-    const latest = everythingInTerminal.at(-1);
 
     const added= addNext(everythingInTerminal)
     return added
