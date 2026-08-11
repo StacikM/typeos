@@ -54,6 +54,7 @@ const manPages : Record<string, string> = {
     attachToHelper: "attachToHelper <key> — attach this session to a running TypeOS PC helper, syncing your filesystem with your real PC",
     detachHelper: "detachHelper — detach from the PC helper, stopping the sync",
     ssh: "ssh <user@host> [-p port] — connect to a real ssh server through the PC helper (attach first). runs one command at a time; type exit to disconnect. interactive programs (nano, vim, top, ...) don't work",
+    typepkg: "typepkg <a lotta stuff, use the --help argument> — TypeOS's package manager"
 }
 
 function needWrite(path : string) {
@@ -167,6 +168,11 @@ function findInPath(name : string) {
         if (readFile(candidate) != null) { return candidate }
     }
     return null
+}
+
+async function sha256Hex(text : string) {
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("")
 }
 
 export async function interpretCmd(cmd : string, args: Array<string>) {
@@ -498,6 +504,93 @@ export async function interpretCmd(cmd : string, args: Array<string>) {
             enableType()
             if (res.output) { printf(res.output.replace(/\n$/, "")) }
             if (res.error) { printf(res.error.replace(/\n$/, ""), "red") }
+        }
+    } else if (cmd == "typepkg") {
+        if (!args[0]) { printf("use --help if your confused"); return; }
+        const arg1 = args[0]
+        const arg2 = args[1]
+        const arg3 = args[2]
+
+        if (arg1 == "--help") {
+            printf("you can go to https://typeos.stacik.dev to see all packages")
+            printf("search <string> - search for a pkg")
+            printf("info - get info abt this program")
+            printf("info <name> - get info abt a pkg")
+            printf("info <name> <version> - get info abt a pkg's ver")
+            printf("install <package> - installs latest version for package")
+            printf("install <package> <version> - install specific version for package")
+            return
+        } else if (arg1 == "search") {
+            if (!arg2) { printf("searching for.. nothing?", "red"); return; }
+            try {
+                const res = await fetch("https://typeos.stacik.dev/packages?search=" + encodeURIComponent(arg2))
+                const pkgs = await res.json()
+                printf("found " + pkgs.length + " packages")
+                for (const pkg of pkgs) { printf(pkg.name + " - " + pkg.description) }
+            } catch { printf("typepkg: couldn't reach stacik.dev", "red") }
+        } else if (arg1 == "info") {
+            if (!arg2) { printf("typepkg stands for TypeOS Package Manager. It is the equivalent of apt or pacman on linux."); printf("You can submit/see all packages on https://typeos.stacik.dev"); return;}
+            try {
+                if (!arg3) {
+                    const res = await fetch("https://typeos.stacik.dev/packages/" + encodeURIComponent(arg2))
+                    if (res.status == 404) { printf("that package wasn't found, or wasn't approved by admin", "red"); return; }
+                    const pkg = await res.json()
+                    printf(pkg.name)
+                    printf("description: " + pkg.description)
+                    printf("by: " + pkg.owner)
+                    printf("latest ver: " + pkg.latestVersion)
+                    printf("add version number to arguments to see version info and sha256")
+                } else {
+                    const res = await fetch("https://typeos.stacik.dev/packages/" + encodeURIComponent(arg2) + "/versions/" + encodeURIComponent(arg3))
+                    if (res.status == 404) { printf("package or version doesn't exist or hasn't been approved by admin", "red"); return; }
+                    const ver = await res.json()
+                    printf("version: " + arg3)
+                    printf("update note: " + ver.description)
+                    printf("filename: " + ver.fileName)
+                    printf("size in bytes: " + ver.sizeBytes)
+                    printf("sha256: " + ver.sha256)
+                }
+            } catch { printf("typepkg: couldn't reach stacik.dev", "red") }
+        } else if (arg1 == "install") {
+            if (!arg2) { printf("installing absolutely nothing"); return; }
+            if (!needWrite("/bin/" + arg2)) { return }
+
+            const confirm = await input("install " + arg2 + (arg3 ? " version " + arg3 : " (latest)") + "? Y/N")
+            if (confirm.toLowerCase() != "y") { printf("cancelled"); return }
+
+            try {
+                let version = arg3
+                if (!version) {
+                    const infoRes = await fetch("https://typeos.stacik.dev/packages/" + encodeURIComponent(arg2))
+                    if (infoRes.status == 404) { printf("that package wasn't found, or wasn't approved by admin", "red"); return; }
+                    version = (await infoRes.json()).latestVersion
+                }
+
+                const verRes = await fetch("https://typeos.stacik.dev/packages/" + encodeURIComponent(arg2) + "/versions/" + encodeURIComponent(version))
+                if (verRes.status == 404) { printf("package or version doesn't exist or hasn't been approved by admin", "red"); return; }
+                const ver = await verRes.json()
+
+                printf("requesting package from stacik.dev")
+                const contentsRes = await fetch("https://typeos.stacik.dev/packages/" + encodeURIComponent(arg2) + "/versions/" + encodeURIComponent(version) + "/contents")
+                if (contentsRes.status == 404) { printf("i couldn't find the file for version " + version, "red"); return; }
+                const data = await contentsRes.text()
+
+                if (ver.sha256) {
+                    const hash = await sha256Hex(data)
+                    if (hash.toLowerCase() != String(ver.sha256).toLowerCase()) {
+                        printf("sha256 mismatch! refusing to install", "red")
+                        printf("  expected " + ver.sha256, "red")
+                        printf("  got      " + hash, "red")
+                        return
+                    }
+                    printf("sha256 verified")
+                }
+
+                writeFile("/bin/" + ver.fileName, data)
+                printf("installed " + arg2 + " " + version + " -> /bin/" + ver.fileName, "lime")
+            } catch { printf("typepkg: couldn't reach stacik.dev", "red") }
+        } else {
+            printf("unknown subcommand '" + arg1 + "', use --help")
         }
     } else {
         const path = cmd.includes("/") ? cmd : findInPath(cmd)
