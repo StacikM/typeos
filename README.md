@@ -1,6 +1,15 @@
 # typeos
 An OS in typescript (somehow)
 
+# huh
+TypeOS is an os in Typescript. It is not a traditional OS in the sense that there is a desktop or an actual filesystem.
+
+TypeOS is a **WEB** application mimicking a linux shell, and it does a pretty good job at it.
+
+The filesystem uses localstorage (wow) to save data. You can alternatively use PC helper to backup your data or to put files onto TypeOS
+
+It has its own package manager
+
 # setup
 if you want to try typeos, follow these steps
 
@@ -20,9 +29,7 @@ if you want to try typeos, follow these steps
 
 8.press enter, you will be given a link to run typeos
 
-if you close the terminal/reboot your pc you will no longer be able to visit 
-
-the link, to revisit it, do these steps
+if you close the terminal/reboot your pc you will no longer be able to visit the link, to revisit it, do these steps
 
 1.open the websiteitself dir
 
@@ -74,3 +81,9 @@ on macos: ~/Library/Application Support/TypeOS/filesystem/
 
 # u used ai for this!!!! omg!!
 yes, minor ai has been used, and you can't blame me, imagine making a goddamn OS in a browser, with a lot of limitations, and as a solo developer. still most of the OS is all done by myself
+
+# is there a package manager?
+of course, TypeOS comes with a package manager. You may use it to download JS packages that other users uploaded. To see how to use it in TypeOS type "typepkg --help".
+
+# how do i upload to the package manager?
+go to https://typeos.stacik.dev, create an account, go to the upload tab, fill in everything, and submit. i will have to review the package to make sure its safe (within 1 or 2 hours) and then your package will be published

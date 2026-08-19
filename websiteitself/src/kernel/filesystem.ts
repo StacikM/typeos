@@ -58,7 +58,7 @@ export function dumpFs() {
     const fs : Record<string, string> = {}
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i)
-        if (key != null) { fs[key] = localStorage.getItem(key) ?? "" }
+        if (key != null && key.startsWith("/")) { fs[key] = localStorage.getItem(key) ?? "" }
     }
     return fs
 }

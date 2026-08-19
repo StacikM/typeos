@@ -76,11 +76,14 @@ app.MapPost("/detach", (HttpRequest req) =>
 app.MapGet("/files", (HttpRequest req) =>
 {
     if (!Authorized(req) || !attached) return Results.Unauthorized();
-    var files = Directory.GetFiles(workspaceDir, "*", SearchOption.AllDirectories).Select(f => new
-    {
-        path = Path.GetRelativePath(workspaceDir, f).Replace("\\", "/"),
-        modified = File.GetLastWriteTimeUtc(f)
-    });
+    var junkNames = new[] { ".DS_Store", "Thumbs.db", "desktop.ini" };
+    var files = Directory.GetFiles(workspaceDir, "*", SearchOption.AllDirectories)
+        .Where(f => !junkNames.Contains(Path.GetFileName(f)))
+        .Select(f => new
+        {
+            path = Path.GetRelativePath(workspaceDir, f).Replace("\\", "/"),
+            modified = File.GetLastWriteTimeUtc(f)
+        });
     return Results.Json(files);
 });
 

@@ -43,10 +43,11 @@ function addNext(everythingInTerminal: number[]): number {
   return next;
 }
 
-export function printf(text : string, color : string = "white") {
+export function printf(text : string, color : string = "white", exceptToFont : boolean = false) {
     const newp = document.createElement("p")
     newp.textContent = text
     if (color != "white") { newp.style.color = color; }
+    if (exceptToFont) { newp.style.fontFamily = '"Ubuntu Mono", "Menlo", "Consolas", monospace;'}
     terminalDiv?.append(newp)
     scrollToBottom()
 
