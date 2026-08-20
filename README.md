@@ -1,5 +1,10 @@
 # typeos
+
+![TypeOS](makesthegithubpagecooler/thumbnail.png)
+
 An OS in typescript (somehow)
+
+
 
 # huh
 TypeOS is an os in Typescript. It is not a traditional OS in the sense that there is a desktop or an actual filesystem.
@@ -59,7 +64,7 @@ if you sell the project, we will sue you (LICENSE)
 
 2.place it in a folder (like in Documents)
 
-3.open a terminal in the folder u placed it in
+3.open a terminal in the folder you placed it in
 
 4.on windows: .\pchelper(blablabla)
 
@@ -67,7 +72,7 @@ if you sell the project, we will sue you (LICENSE)
 
 5.it will ask for how much mb u want to allocate (changable later)
 
-6.it will give u a key & instructions to attach TypeOS with it
+6.it will give you a key & instructions to attach TypeOS with it
 
 7.done! the typeos file system is now attached to your actual file system
 
@@ -87,3 +92,6 @@ of course, TypeOS comes with a package manager. You may use it to download JS pa
 
 # how do i upload to the package manager?
 go to https://typeos.stacik.dev, create an account, go to the upload tab, fill in everything, and submit. i will have to review the package to make sure its safe (within 1 or 2 hours) and then your package will be published
+
+# can PC helper rm -rf / my pc?
+PC Helper is unable to access any other folder other than the specific folder on your system designed to contain your TypeOS files. All file operations make sure that you can't just ../ out of the directory and access external files.

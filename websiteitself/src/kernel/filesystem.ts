@@ -120,6 +120,7 @@ export function listFiles(path : string) {
     let dir = normalize(path)
     if (!dir.endsWith("/")) { dir += "/" }
 
+    // this might be one of the worst code i have wrote in my life
     const names = new Set<string>()
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i)

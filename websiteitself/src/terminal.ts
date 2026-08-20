@@ -47,7 +47,7 @@ export function printf(text : string, color : string = "white", exceptToFont : b
     const newp = document.createElement("p")
     newp.textContent = text
     if (color != "white") { newp.style.color = color; }
-    if (exceptToFont) { newp.style.fontFamily = '"Ubuntu Mono", "Menlo", "Consolas", monospace;'}
+    if (exceptToFont) { newp.style.fontFamily = '"Ubuntu Mono", "Menlo", "Consolas", monospace;'} // a font change cmd will MAYBE just MAYBE implemented. this is just so the TypeOS logo doesn't get absolutely vandalised by another font
     terminalDiv?.append(newp)
     scrollToBottom()
 
