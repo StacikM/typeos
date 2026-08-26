@@ -10,6 +10,7 @@ import panic from "./kernel/panic";
 import { attach, detach, isAttached, isAvailable } from "./pchelper";
 import { runJsFile } from "./runjs";
 import { isSshConnected, sshConnect, sshDisconnect, sshLabel, sshRun } from "./ssh";
+import suspend from "./kernel/power/suspend";
 
 const manPages : Record<string, string> = {
     help: "help — list every command in one line",
@@ -591,6 +592,17 @@ export async function interpretCmd(cmd : string, args: Array<string>) {
             } catch { printf("typepkg: couldn't reach stacik.dev", "red") }
         } else {
             printf("unknown subcommand '" + arg1 + "', use --help")
+        }
+    } else if (cmd == "systemctl") {
+        if (args.length == 0) { printf("systemctl: use --help for cmds"); return; }
+        const arg1 = args[0]
+        const arg2 = args[1]
+        if (arg1 == "reboot") {
+            restart()
+        } else if (arg1 == "poweroff") {
+            shutdown()
+        } else if (arg1 == "suspend") {
+            suspend()
         }
     } else {
         const path = cmd.includes("/") ? cmd : findInPath(cmd)

@@ -1,13 +1,20 @@
 import { interpretCmd } from "./commands";
 import { getCwd, readFile } from "./kernel/filesystem";
+import globals from "./kernel/globals";
+import panic from "./kernel/panic";
+import unsuspend from "./kernel/power/unsuspend";
 import { getUser } from "./kernel/users";
 import { isNanoOpen, nanoInput, nanoPaste } from "./nano";
 import { feedKey, feedPaste, isScreenOpen } from "./screen";
 
-const terminalDiv = document.getElementById("terminal")
+function getTerminalDiv() {
+    return document.getElementById("terminal")
+}
 const everythingInTerminal: number[] = []
 
-const inputtxt = document.getElementById("input")
+function getInputTxt() {
+    return document.getElementById("input")
+}
 
 let text = ""
 
@@ -48,7 +55,8 @@ export function printf(text : string, color : string = "white", exceptToFont : b
     newp.textContent = text
     if (color != "white") { newp.style.color = color; }
     if (exceptToFont) { newp.style.fontFamily = '"Ubuntu Mono", "Menlo", "Consolas", monospace;'} // a font change cmd will MAYBE just MAYBE implemented. this is just so the TypeOS logo doesn't get absolutely vandalised by another font
-    terminalDiv?.append(newp)
+    if (!document.getElementById("terminal")) { panic("terminalDiv has been deleted. very funny")}
+    getTerminalDiv()?.append(newp)
     scrollToBottom()
 
     const added= addNext(everythingInTerminal)
@@ -61,10 +69,12 @@ function scrollToBottom() {
 
 export function clearTerminal() {
     everythingInTerminal.length = 0;
+    const terminalDiv = getTerminalDiv()
     if (terminalDiv) { terminalDiv.innerHTML = ""; }
 }
 
 export function changeColor(color : string) {
+    const terminalDiv = getTerminalDiv()
     if (terminalDiv) { terminalDiv.style.color = color }
 }
 
@@ -72,6 +82,10 @@ export function registerInput(input : string, ctrl : boolean = false) {
     if (isNanoOpen()) {
         nanoInput(input, ctrl)
         return
+    }
+
+    if (globals.suspended == true) {
+        unsuspend()
     }
     if (isScreenOpen()) {
         feedKey(input, ctrl)
@@ -147,6 +161,7 @@ function prompt() {
 }
 
 function updateTxt() {
+    const inputtxt = getInputTxt()
     if (inputtxt) {
         const shown = maskInput ? "*".repeat(text.length) : text
         inputtxt.textContent = (pendingInput ? inputPrompt : prompt()) + shown
@@ -159,6 +174,7 @@ updateTxt()
 
 export function disableType() {
     canType = false
+    const inputtxt = getInputTxt()
     if (inputtxt) { inputtxt.textContent = "" }
 }
 
