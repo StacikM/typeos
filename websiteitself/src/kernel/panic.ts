@@ -1,5 +1,11 @@
 import { clearTerminal, disableType, printf } from "../terminal"
 
+declare global {
+    interface Window {
+        panic: typeof panic;
+    }
+}
+
 export default function panic(msg : string) {
     document.body.style.backgroundColor = "red"
     clearTerminal();
@@ -16,3 +22,5 @@ export default function panic(msg : string) {
     printf("Sorry for the inconvience :(")
     document.getElementById("input")?.remove();
 }
+
+window.panic = panic;
