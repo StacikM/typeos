@@ -7,10 +7,14 @@ Directory.CreateDirectory(configDir);
 var workspaceDir = Path.Combine(configDir, "filesystem");
 Directory.CreateDirectory(workspaceDir);
 
-Console.Write("Enter how much MB do you want to allocate to TypeOS: ");
-var allocateMB = Console.ReadLine() ?? "100";
 var config = Path.Combine(configDir, "config.json");
-File.WriteAllText(config, $"{{ \"allocateMB\": {allocateMB} }}");
+var reconfigure = args.Contains("--reconfigure");
+if (reconfigure || !File.Exists(config))
+{
+    Console.Write("Enter how much MB do you want to allocate to TypeOS: ");
+    var allocateMB = Console.ReadLine() ?? "100";
+    File.WriteAllText(config, $"{{ \"allocateMB\": {allocateMB} }}");
+}
 
 const string keyChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 var keyPath = Path.Combine(configDir, "key.txt");

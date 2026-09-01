@@ -1,5 +1,5 @@
-import { downloadFile, isMobile, pickFile, youtubeUrlToEmbed } from "./helpers";
-import { changeDir, deleteFile, dirExists, dumpFs, getCwd, listFiles, loadFs, makeDir, readFile, removeDir, resolvePath, writeFile } from "./kernel/filesystem";
+import { audioToBytes, bytesToAudio, downloadFile, isMobile, pickFile, youtubeUrlToEmbed } from "./helpers";
+import { changeDir, copyExecutable, deleteFile, dirExists, dumpFs, getCwd, isExecutable, listFiles, loadFs, makeDir, readFile, removeDir, resolvePath, setExecutable, writeFile } from "./kernel/filesystem";
 import { addUser, canWrite, getUser, getUsers, runAsRoot, switchUser } from "./kernel/users";
 import { expandEnv, getEnv, listEnv, setEnv, unsetEnv } from "./kernel/env";
 import restart from "./kernel/power/restart";
@@ -26,11 +26,12 @@ const manPages : Record<string, string> = {
     cat: "cat <path> — print the contents of a file",
     write: "write <path> <text> — write text to a file (overwrites)",
     touch: "touch <path> — create an empty file if it doesn't exist",
+    chmod: "chmod +x|-x <path> — mark a script executable (or not) so it can be run bare or via ./path. .js files are always executable",
     cp: "cp <original> <copy> — copy a file",
     mv: "mv <from> <to> — move or rename a file",
     rm: "rm [-rf] <path> — delete a file, or a directory with -r. deleting / needs --no-preserve-root",
     nano: "nano <path> — text editor. arrows/home/end move, ctrl+x saves & exits, esc exits without saving",
-    sh: "sh <path> — run a script: one command per line, # comments, VAR=value sets a var, if <expr>/else/end and while <expr>/end for control flow (expr: exists <path>, a == b, a != b, !expr). unrecognized bare commands are looked up in $PATH; use ./name or a full path to run a script directly regardless of PATH. .js files run as real javascript instead (api: print, readFile, writeFile, deleteFile, listFiles, whoami, env, sleep)",
+    sh: "sh <path> — run a script: one command per line, # comments, VAR=value sets a var, if <expr>/else/end and while <expr>/end for control flow (expr: exists <path>, a == b, a != b, !expr). unrecognized bare commands are looked up in $PATH; use ./name or a full path to run a script directly regardless of PATH (needs chmod +x first — .js files are always executable). files ending in .js, or starting with a #!js shebang line, run as real javascript instead (api: print, readFile, writeFile, deleteFile, listFiles, whoami, env, sleep, args, restart)",
     import: "import <path> — upload a real file from your computer into the filesystem (max 1 MB)",
     export: "export <path> — download a file to your computer. export NAME=value sets an env variable",
     env: "env — list all environment variables",
@@ -166,7 +167,7 @@ export async function runScript(script : string) {
 function findInPath(name : string) {
     for (const dir of (getEnv("PATH") ?? "/bin").split(":")) {
         const candidate = (dir.endsWith("/") ? dir : dir + "/") + name
-        if (readFile(candidate) != null) { return candidate }
+        if (readFile(candidate) != null && isExecutable(candidate)) { return candidate }
     }
     return null
 }
@@ -219,11 +220,14 @@ export async function interpretCmd(cmd : string, args: Array<string>) {
         const noPreserveRoot = flags.includes("--no-preserve-root")
         const recursive = flags.some(f => f != "--no-preserve-root" && f.includes("r"))
         const target = args.filter(a => !a.startsWith("-"))[0]
-        if (target == undefined) { printf("usage: rm [-rf] <path>"); return }
+        if (target == undefined) { printf("usage: rm [-rfv] <path>"); return }
         if (!needWrite(target)) { return }
 
         if (readFile(target) != null) {
             deleteFile(target)
+            if (flags.some(f => f != "--no-preserve-root" && f.includes("v"))) {
+                printf("rm: removing file: " + target)
+            }
         } else if (dirExists(target)) {
             if (!recursive) {
                 printf("rm: cannot remove " + target + ": is a directory (use -r)")
@@ -234,6 +238,9 @@ export async function interpretCmd(cmd : string, args: Array<string>) {
                 return
             }
             removeDir(target)
+            if (flags.some(f => f != "--no-preserve-root" && f.includes("v"))) {
+                printf("rm: removing file: " + target)
+            }
         } else {
             printf("rm: cannot remove " + target + ": no such file or directory")
         }
@@ -323,6 +330,12 @@ export async function interpretCmd(cmd : string, args: Array<string>) {
             if (file.size > MAX_SIZE) {
                 printf("ERROR! Your file is too large, please do a smaller file")
                 return
+            }
+            if (file.name.endsWith(".mp3") || file.name.endsWith(".wav") || file.name.endsWith(".ogg")) {
+                const bytes = await audioToBytes(file)
+                writeFile(args[0], String(bytes))
+                printf("Successfully wrote AUDIO file to " + args[0])
+                return;
             }
             const data = await file.text();
             writeFile(args[0], data)
@@ -420,17 +433,24 @@ export async function interpretCmd(cmd : string, args: Array<string>) {
         const a = readFile(args[0])
         if (a == null) { printf("Invalid file"); return;}
         writeFile(args[1], a)
+        copyExecutable(args[0], args[1])
     } else if (cmd == "mv") {
         if (!args[0] || !args[1]) { printf("usage: mv <from> <to>"); return; }
         if (!needWrite(args[0]) || !needWrite(args[1])) { return }
         const a = readFile(args[0])
         if (a == null) { printf("Invalid file"); return; }
         writeFile(args[1], a)
+        copyExecutable(args[0], args[1])
         deleteFile(args[0])
     } else if (cmd == "touch") {
         if (args.length == 0) { printf("usage: touch <path>"); return }
         if (!needWrite(args[0])) { return }
         if (readFile(args[0]) == null) { writeFile(args[0], "") }
+    } else if (cmd == "chmod") {
+        if (args.length < 2 || (args[0] != "+x" && args[0] != "-x")) { printf("usage: chmod +x|-x <path>"); return }
+        if (!needWrite(args[1])) { return }
+        if (readFile(args[1]) == null) { printf("chmod: " + args[1] + ": no such file"); return }
+        setExecutable(args[1], args[0] == "+x")
     } else if (cmd == "man") {
         if (args.length == 0) { printf("usage: man <command>"); return }
         const page = manPages[args[0]]
@@ -604,13 +624,26 @@ export async function interpretCmd(cmd : string, args: Array<string>) {
         } else if (arg1 == "suspend") {
             suspend()
         }
+    } else if (cmd == "mvp") {
+        if (args[0]) {
+            const raw = readFile(args[0]) 
+            if (raw == null) { printf("mvp: " + args[0] + ": no such file"); return }
+            const bytes = Uint8Array.from(raw.split(",").map(Number))
+            const blob = bytesToAudio(bytes)
+            const audioUrl = URL.createObjectURL(blob)
+            const audioEl = new Audio(audioUrl)
+            audioEl.play()
+            printf("Playing")
+        } 
     } else {
         const path = cmd.includes("/") ? cmd : findInPath(cmd)
         const content = path == null ? null : readFile(path)
         if (content == null || path == null) {
             printf(cmd + ": command not found")
-        } else if (path.endsWith(".js")) {
-            await runJsFile(content)
+        } else if (!isExecutable(path)) {
+            printf(cmd + ": permission denied (try chmod +x)")
+        } else if (path.endsWith(".js") || content.startsWith("#!js")) {
+            await runJsFile(content, args)
         } else {
             await runScript(content)
         }

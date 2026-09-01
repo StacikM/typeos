@@ -1,9 +1,10 @@
 import "./style.css";
-import { getUsedMB, readFile, writeFile } from "./kernel/filesystem";
+import { getUsedMB, readFile, setExecutable, writeFile } from "./kernel/filesystem";
 import { input, printf, registerInput, registerPaste } from "./terminal";
 import restart from "./kernel/power/restart";
 import { randomString } from "./helpers";
 import { isAvailable } from "./pchelper";
+import globals from "./kernel/globals";
 
 const banner = [
   " _____ __   __ ____   _____   ___   ____  ",
@@ -79,4 +80,24 @@ if (actualpowerbtn) {
   }
 }
 
-start()
+async function bootloader() {
+  const params = new URLSearchParams(window.location.search)
+
+  const recoveryMode = params.get("recovery")
+  if (recoveryMode != "1" && recoveryMode != "true") {
+    start()
+  } else {
+    recovery()
+  }
+}
+
+async function recovery() {
+  globals.recovery = true
+  if (powerbtn) { powerbtn.style.display = "none"}
+  navigator.storage?.persist?.()
+  printf("You are now in recovery mode. Some services were not started") // rn basically useless but when we get auto boot its gonna have cool stuff
+  writeFile("/bin/exitrecovery", '#!js printf("Exiting"); window.location.search = ""; restart();')
+  setExecutable("/bin/exitrecovery", true)
+}
+
+bootloader()

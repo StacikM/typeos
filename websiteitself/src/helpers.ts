@@ -73,3 +73,12 @@ export function randomString(length = 16): string {
 
   return result;
 }
+
+export async function audioToBytes(file: File): Promise<Uint8Array<ArrayBuffer>> {
+  const buffer = await file.arrayBuffer();
+  return new Uint8Array(buffer);
+}
+
+export function bytesToAudio(bytes: Uint8Array<ArrayBuffer>): Blob {
+  return new Blob([bytes], { type: "audio/wav" });
+}

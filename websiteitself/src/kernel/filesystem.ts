@@ -30,6 +30,10 @@ export function dirExists(path : string) {
     return listFiles(dir).length > 0
 }
 
+export function copyExecutable(from : string, to : string) {
+    setExecutable(to, localStorage.getItem("chmod:" + normalize(from)) == "x")
+}
+
 export function makeDir(path : string) {
     localStorage.setItem(normalize(path) + "/", "")
 }
@@ -113,7 +117,22 @@ export function readFile(path : string) {
 export function deleteFile(path : string) {
     const p = normalize(path)
     localStorage.removeItem(p)
+    localStorage.removeItem("chmod:" + p)
     notify(p, null)
+}
+
+export function isExecutable(path : string) {
+    const p = normalize(path)
+    return p.endsWith(".js") || localStorage.getItem("chmod:" + p) == "x"
+}
+
+export function setExecutable(path : string, exec : boolean) {
+    const p = normalize(path)
+    if (exec) {
+        localStorage.setItem("chmod:" + p, "x")
+    } else {
+        localStorage.removeItem("chmod:" + p)
+    }
 }
 
 export function listFiles(path : string) {
