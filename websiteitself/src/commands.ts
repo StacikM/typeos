@@ -616,7 +616,6 @@ export async function interpretCmd(cmd : string, args: Array<string>) {
     } else if (cmd == "systemctl") {
         if (args.length == 0) { printf("systemctl: use --help for cmds"); return; }
         const arg1 = args[0]
-        const arg2 = args[1]
         if (arg1 == "reboot") {
             restart()
         } else if (arg1 == "poweroff") {
