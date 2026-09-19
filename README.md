@@ -16,7 +16,7 @@ The filesystem uses localstorage (wow) to save data. You can alternatively use P
 It has its own package manager
 
 # setup
-if you want to try typeos, follow these steps
+if you want to try typeos, follow these steps or just use the demo https://typeos-demo.stacik.dev
 
 1.clone/download the repo
 
@@ -70,7 +70,7 @@ if you sell the project, we will sue you (LICENSE)
 
   on linux or mac ./pchelper(blablabla)
 
-5.it will ask for how much mb u want to allocate (changable later)
+5.it will ask for how much mb u want to allocate (changeable later)
 
 6.it will give you a key & instructions to attach TypeOS with it
 
