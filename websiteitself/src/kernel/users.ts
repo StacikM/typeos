@@ -23,6 +23,12 @@ export function addUser(name : string) {
     return true
 }
 
+export function removeUser(name : string) {
+    if (!userExists(name)) { return false }
+    writeFile("/etc/passwd", getUsers().filter(u => u != name).join("\n"))
+    return true
+}
+
 export function switchUser(name : string) {
     if (!userExists(name)) { return false }
     currentUser = name

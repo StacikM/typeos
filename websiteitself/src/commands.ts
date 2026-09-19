@@ -1,6 +1,6 @@
 import { audioToBytes, bytesToAudio, downloadFile, isMobile, pickFile, youtubeUrlToEmbed } from "./helpers";
 import { changeDir, copyExecutable, deleteFile, dirExists, dumpFs, getCwd, isExecutable, listFiles, loadFs, makeDir, readFile, removeDir, resolvePath, setExecutable, writeFile } from "./kernel/filesystem";
-import { addUser, canWrite, getUser, getUsers, runAsRoot, switchUser } from "./kernel/users";
+import { addUser, canWrite, getUser, getUsers, removeUser, runAsRoot, switchUser } from "./kernel/users";
 import { expandEnv, getEnv, listEnv, setEnv, unsetEnv } from "./kernel/env";
 import restart from "./kernel/power/restart";
 import shutdown from "./kernel/power/shutdown";
@@ -43,6 +43,7 @@ const manPages : Record<string, string> = {
     whoami: "whoami — print the current user",
     users: "users — list all users",
     useradd: "useradd <name> — create a user with a home dir (root only)",
+    userremove: "userremove <name> — delete a user and their home dir (root only)",
     su: "su [name] — switch user, defaults to root",
     sudo: "sudo <command> [args] — run one command as root",
     hostnamectl: "hostnamectl set-hostname <name> — rename the machine (shown in the prompt)",
@@ -56,7 +57,9 @@ const manPages : Record<string, string> = {
     attachToHelper: "attachToHelper <key> — attach this session to a running TypeOS PC helper, syncing your filesystem with your real PC",
     detachHelper: "detachHelper — detach from the PC helper, stopping the sync",
     ssh: "ssh <user@host> [-p port] — connect to a real ssh server through the PC helper (attach first). runs one command at a time; type exit to disconnect. interactive programs (nano, vim, top, ...) don't work",
-    typepkg: "typepkg <a lotta stuff, use the --help argument> — TypeOS's package manager"
+    typepkg: "typepkg <a lotta stuff, use the --help argument> — TypeOS's package manager",
+    systemctl: "systemctl reboot|poweroff|suspend — control system power state",
+    mvp: "mvp <path> — play back an audio file previously imported into the filesystem"
 }
 
 function needWrite(path : string) {
@@ -306,6 +309,13 @@ export async function interpretCmd(cmd : string, args: Array<string>) {
             return
         }
         printf("created user " + args[0] + " with home /home/" + args[0])
+    } else if (cmd == "userremove") {
+        if (args.length == 0) { printf("usage: userremove <name>"); return }
+        if (getUser() != "root") { printf("permission denied (try sudo)"); return }
+        if (args[0] == "root") { printf("userremove: cannot remove root"); return }
+        if (!removeUser(args[0])) { printf("userremove: user " + args[0] + " does not exist"); return }
+        if (dirExists("/home/" + args[0])) { removeDir("/home/" + args[0]) }
+        printf("removed user " + args[0])
     } else if (cmd == "su") {
         const name = args[0] ?? "root"
         if (!switchUser(name)) {
