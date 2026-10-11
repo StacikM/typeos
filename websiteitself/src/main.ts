@@ -5,6 +5,7 @@ import restart from "./kernel/power/restart";
 import { randomString } from "./helpers";
 import { isAvailable } from "./pchelper";
 import globals from "./kernel/globals";
+import startAutoStarting from "./autostart";
 
 const banner = [
   " _____ __   __ ____   _____   ___   ____  ",
@@ -17,6 +18,7 @@ const banner = [
 const powerbtn = document.getElementById("powerbtn")
 
 async function start() {
+  startAutoStarting()
   const usage = getUsedMB()
   if (powerbtn) { powerbtn.style.display = "none"}
   navigator.storage?.persist?.()
@@ -95,7 +97,7 @@ async function recovery() {
   globals.recovery = true
   if (powerbtn) { powerbtn.style.display = "none"}
   navigator.storage?.persist?.()
-  printf("You are now in recovery mode. Some services were not started") // rn basically useless but when we get auto boot its gonna have cool stuff
+  printf("You are now in recovery mode. Some services were not started") // auto start wasn't started
   writeFile("/bin/exitrecovery", '#!js printf("Exiting"); window.location.search = ""; restart();')
   setExecutable("/bin/exitrecovery", true)
 }

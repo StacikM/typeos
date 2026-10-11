@@ -96,7 +96,7 @@ export function getUsedMB() {
     return getUsedBytes() / 1024 / 1024
 }
 
-function normalize(path : string) {
+export function normalize(path : string) {
     if (!path.startsWith("/")) { path = cwd + "/" + path }
 
     const parts : string[] = []

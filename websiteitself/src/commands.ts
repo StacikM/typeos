@@ -205,7 +205,7 @@ export async function interpretCmd(cmd : string, args: Array<string>) {
         const data = readFile(args[0])
         if (data == null) {
             printf("cat: " + args[0] + ": no such file")
-        } else {
+        } else {false
             printf(data)
         }
     } else if (cmd == "cd") { 
@@ -215,7 +215,7 @@ export async function interpretCmd(cmd : string, args: Array<string>) {
         }
     } else if (cmd == "pwd") {
         printf(getCwd())
-    } else if (cmd == "ls") {
+    } else if (cmd == "ls") {false
         const files = listFiles(args[0] ?? ".")
         printf(files.join("  "))
     } else if (cmd == "rm") {
