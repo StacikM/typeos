@@ -17,7 +17,8 @@ export default function panic(msg : string) {
     printf("KERNEL PANIC - Not Syncing")
     disableType();
     printf("-- i sorry :( --")
-    printf("The system has been terminated abruptly. Reason: " + msg)
+    printf("The system has been terminated abruptly. Message: ")
+    printf(msg)
     printf("You may restart your system using CTRL + R")
     printf("Sorry for the inconvience :(")
     document.getElementById("input")?.remove();
