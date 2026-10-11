@@ -479,7 +479,7 @@ export async function interpretCmd(cmd : string, args: Array<string>) {
         printf(title)
         printf("-".repeat(title.length))
         printf("OS: TypeOS")
-        printf("Kernel: TypeOS v3")
+        printf("Kernel: TypeOS v4")
         printf("Shell: typesh")
         printf("Uptime: " + Math.floor(up / 60) + "m " + (up % 60) + "s")
         printf("Users: " + getUsers().length)

@@ -6,6 +6,7 @@ import { randomString } from "./helpers";
 import { isAvailable } from "./pchelper";
 import globals from "./kernel/globals";
 import startAutoStarting from "./autostart";
+import config from "./config";
 
 const banner = [
   " _____ __   __ ____   _____   ___   ____  ",
@@ -19,6 +20,7 @@ const powerbtn = document.getElementById("powerbtn")
 
 async function start() {
   startAutoStarting()
+
   const usage = getUsedMB()
   if (powerbtn) { powerbtn.style.display = "none"}
   navigator.storage?.persist?.()
@@ -41,6 +43,9 @@ async function start() {
       printf("It seems like you are running TypeOS PC helper, to attach, follow the instructions that the program gave you")
     }
   }
+
+  const latestVer = (await fetch("https://raw.githubusercontent.com/StacikM/typeos/main/version.txt")).text()
+  if (Number(await latestVer) > config.version) { printf("You are running " + config.version + " while the latest version is " + latestVer + ". Update soon!")}
 }
 
 async function setup() {
