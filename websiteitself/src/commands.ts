@@ -31,7 +31,7 @@ const manPages : Record<string, string> = {
     mv: "mv <from> <to> — move or rename a file",
     rm: "rm [-rf] <path> — delete a file, or a directory with -r. deleting / needs --no-preserve-root",
     nano: "nano <path> — text editor. arrows/home/end move, ctrl+x saves & exits, esc exits without saving",
-    sh: "sh <path> — run a script: one command per line, # comments, VAR=value sets a var, if <expr>/else/end and while <expr>/end for control flow (expr: exists <path>, a == b, a != b, !expr). unrecognized bare commands are looked up in $PATH; use ./name or a full path to run a script directly regardless of PATH (needs chmod +x first — .js files are always executable). files ending in .js, or starting with a #!js shebang line, run as real javascript instead (api: print, printf, readFile, writeFile, deleteFile, listFiles, whoami, env, cwd, resolvePath, sleep, now, random, randInt, beep, input, run, storage, exit, screen, args, restart)",
+    sh: "sh <path> — run a script: one command per line, # comments, VAR=value sets a var, if <expr>/else/end and while <expr>/end for control flow (expr: exists <path>, a == b, a != b, !expr). unrecognized bare commands are looked up in $PATH; use ./name or a full path to run a script directly regardless of PATH (needs chmod +x first — .js files are always executable). files ending in .js, or starting with a #!js shebang line, run as real javascript instead (api docs: docs/api.md on github)",
     import: "import <path> — upload a real file from your computer into the filesystem (max 1 MB)",
     export: "export <path> — download a file to your computer. export NAME=value sets an env variable",
     env: "env — list all environment variables",
@@ -167,7 +167,7 @@ export async function runScript(script : string) {
     }
 }
 
-function findInPath(name : string) {
+export function findInPath(name : string) {
     for (const dir of (getEnv("PATH") ?? "/bin").split(":")) {
         const candidate = (dir.endsWith("/") ? dir : dir + "/") + name
         if (readFile(candidate) != null && isExecutable(candidate)) { return candidate }

@@ -22,7 +22,7 @@ p {
     50% { opacity: 0; }
 }
 
-#editor, #screen {
+#editor, .screen {
     position: fixed;
     inset: 0;
     background: black;
@@ -31,17 +31,37 @@ p {
     flex-direction: column;
 }
 
-#editor .bar, #screen .bar {
+#editor .bar, .screen .bar {
     background: white;
     color: black;
     padding: 2px 8px;
 }
 
-#editor pre, #screen pre {
+#editor pre, .screen pre {
     flex: 1;
     margin: 0;
     padding: 8px;
     font-family: inherit;
     white-space: pre-wrap;
     overflow-y: auto;
+}
+
+.screen.window {
+    inset: auto;
+    border: 1px solid gray;
+    box-sizing: border-box;
+}
+
+.screen.window.focused {
+    border-color: white;
+}
+
+.screen.window .bar {
+    background: gray;
+    cursor: move;
+    user-select: none;
+}
+
+.screen.window.focused .bar {
+    background: white;
 }

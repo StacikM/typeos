@@ -5,6 +5,10 @@ const listeners : ChangeListener[] = []
 
 export function onFsChange(cb : ChangeListener) {
     listeners.push(cb)
+    return () => {
+        const i = listeners.indexOf(cb)
+        if (i != -1) { listeners.splice(i, 1) }
+    }
 }
 
 function notify(path : string, data : string | null) {
@@ -47,7 +51,10 @@ export function removeDir(path : string) {
         const key = localStorage.key(i)
         if (key && key.startsWith(prefix)) { doomed.push(key) }
     }
-    for (const key of doomed) { localStorage.removeItem(key) }
+    for (const key of doomed) {
+        localStorage.removeItem(key)
+        notify(key, null)
+    }
 
     if (cwd == dir || cwd.startsWith(prefix)) {
         cwd = "/"
