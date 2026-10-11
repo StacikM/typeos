@@ -1,6 +1,9 @@
 let active = false
 let keyHandler : ((key : string, ctrl : boolean) => void) | null = null
 let keyUpHandler : ((key : string) => void) | null = null
+type MouseInfo = { type : "down" | "up" | "move" | "wheel", x : number, y : number, button : number, delta : number }
+let mouseHandler : ((e : MouseInfo) => void) | null = null
+const mouse = { x: -1, y: -1, buttons: new Set<number>() }
 let resizeHandler : ((cols : number, rows : number) => void) | null = null
 let pendingRead : ((k : { key : string, ctrl : boolean }) => void) | null = null
 const queue : { key : string, ctrl : boolean }[] = []
@@ -49,7 +52,59 @@ document.addEventListener("keyup", (e) => {
     keyUpHandler?.(e.key)
 })
 
-window.addEventListener("blur", () => held.clear())
+window.addEventListener("blur", () => { held.clear(); mouse.buttons.clear() })
+
+// pixel position -> cell, or null when it's outside the grid (bars, padding)
+function toCell(clientX : number, clientY : number) {
+    const rect = body.getBoundingClientRect()
+    const char = measurer.getBoundingClientRect()
+    const css = getComputedStyle(body)
+    const { cols, rows } = getSize()
+    const x = Math.floor((clientX - rect.left - parseFloat(css.paddingLeft)) / (char.width || 1))
+    const y = Math.floor((clientY - rect.top - parseFloat(css.paddingTop) + body.scrollTop) / (char.height || 1))
+    if (x < 0 || y < 0 || x >= cols || y >= rows) { return null }
+    return { x, y }
+}
+
+function emitMouse(type : MouseInfo["type"], e : MouseEvent, delta : number = 0) {
+    const cell = toCell(e.clientX, e.clientY)
+    if (!cell) { return false }
+    if (type == "move" && cell.x == mouse.x && cell.y == mouse.y) { return true }
+    mouse.x = cell.x
+    mouse.y = cell.y
+    mouseHandler?.({ type, x: cell.x, y: cell.y, button: e.button, delta })
+    return true
+}
+
+body.addEventListener("mousedown", (e) => {
+    if (emitMouse("down", e)) { mouse.buttons.add(e.button) }
+})
+
+// on document so letting go outside the screen still counts
+document.addEventListener("mouseup", (e) => {
+    if (!active || !mouse.buttons.has(e.button)) { return }
+    mouse.buttons.delete(e.button)
+    if (!emitMouse("up", e)) { mouseHandler?.({ type: "up", x: mouse.x, y: mouse.y, button: e.button, delta: 0 }) }
+})
+
+body.addEventListener("mousemove", (e) => { emitMouse("move", e) })
+
+body.addEventListener("wheel", (e) => {
+    if (mouseHandler) { e.preventDefault() }
+    emitMouse("wheel", e, Math.sign(e.deltaY))
+}, { passive: false })
+
+body.addEventListener("contextmenu", (e) => {
+    if (mouseHandler) { e.preventDefault() }
+})
+
+function resetMouse() {
+    mouseHandler = null
+    mouse.x = -1
+    mouse.y = -1
+    mouse.buttons.clear()
+    screenDiv.style.userSelect = ""
+}
 
 window.addEventListener("resize", () => {
     if (!active) { return }
@@ -164,6 +219,7 @@ export function openScreen() {
     pendingRead = null
     queue.length = 0
     held.clear()
+    resetMouse()
     cells = []
     header.style.display = "none"
     footer.style.display = "none"
@@ -192,6 +248,17 @@ export function openScreen() {
         },
         isDown(key : string) {
             return held.has(normKey(key))
+        },
+        // type is "down" | "up" | "move" | "wheel", delta is -1/1 for wheel
+        onMouse(cb : (e : MouseInfo) => void) {
+            mouseHandler = cb
+            screenDiv.style.userSelect = "none"
+        },
+        mouse() {
+            return { x: mouse.x, y: mouse.y, down: mouse.buttons.has(0) }
+        },
+        isMouseDown(button : number = 0) {
+            return mouse.buttons.has(button)
         },
         readKey() : Promise<{ key : string, ctrl : boolean }> {
             return new Promise((resolve) => {
@@ -260,6 +327,7 @@ export function openScreen() {
             pendingRead = null
             queue.length = 0
             held.clear()
+            resetMouse()
             cells = []
             screenDiv.remove()
         }

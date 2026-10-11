@@ -115,6 +115,24 @@ Keys use the browser's [`KeyboardEvent.key`](https://developer.mozilla.org/en-US
 | `await s.readKey()` | Waits for the next key press and returns `{ key, ctrl }`. Good for turn-based apps. |
 | `s.isDown(key)` | `true` while the key is held. Letters ignore case, so `isDown("a")` still works while Shift is held. Use this for movement in games. |
 
+### Mouse
+
+Mouse positions are given in cells, the same grid as `put()` and `text()`. Clicks on the header, footer or padding are ignored.
+
+| Method | Description |
+| --- | --- |
+| `s.onMouse(e => {})` | Called with `{ type, x, y, button, delta }`. `type` is `"down"`, `"up"`, `"move"` or `"wheel"`. `button` is `0` for left, `1` for middle and `2` for right. `delta` is `-1` (scroll up) or `1` (scroll down), and only set for `"wheel"`. `"move"` fires only when the mouse enters a new cell. Setting a handler turns off text selection, the right-click menu and wheel scrolling on the screen. |
+| `s.mouse()` | Returns `{ x, y, down }`: the last cell the mouse was over and whether the left button is held. `x` and `y` are `-1` before the mouse has moved over the screen. |
+| `s.isMouseDown(button = 0)` | `true` while that button is held. |
+
+Releasing a button outside the screen still sends an `"up"`, at the last known position, so drags can't get stuck.
+
+```js
+s.onMouse(e => {
+    if (e.type == "down" && e.button == 0) s.put(e.x, e.y, "#", { fg: "orange" })
+})
+```
+
 ### Drawing text
 
 | Method | Description |
